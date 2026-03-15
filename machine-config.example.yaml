@@ -1,0 +1,11 @@
+namePrefix: rancher-machine-poc
+projectID: my-project-id
+region: se-sto
+zone: a
+computeProfileRef: /compute/global/computeProfiles/a1a.s
+diskImageRef: /compute/global/diskImages/evroc/ubuntu.24-04.1
+diskSizeGB: 30
+sshAuthorizedKeys:
+  - ssh-ed25519 AAAA... user@example
+sshSourceCIDR: 0.0.0.0/0
+kubernetesAPISourceCIDR: 0.0.0.0/0

@@ -1,0 +1,106 @@
+{
+  "driverName": "evroc",
+  "fields": [
+    {
+      "name": "namePrefix",
+      "type": "string",
+      "label": "Name Prefix",
+      "description": "Prefix used when naming Evroc resources for the machine.",
+      "required": true,
+      "examples": [
+        "rancher-machine-poc"
+      ]
+    },
+    {
+      "name": "projectID",
+      "type": "string",
+      "label": "Project ID",
+      "description": "Evroc project ID where the machine will be created.",
+      "required": true,
+      "examples": [
+        "my-project-id"
+      ]
+    },
+    {
+      "name": "region",
+      "type": "string",
+      "label": "Region",
+      "description": "Evroc region for the machine and its supporting resources.",
+      "required": false,
+      "defaultValue": "se-sto",
+      "examples": [
+        "se-sto"
+      ]
+    },
+    {
+      "name": "zone",
+      "type": "string",
+      "label": "Zone",
+      "description": "Evroc availability zone for the machine boot disk and VM placement.",
+      "required": false,
+      "defaultValue": "a",
+      "examples": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "name": "computeProfileRef",
+      "type": "string",
+      "label": "Compute Profile",
+      "description": "Evroc compute profile reference for the VM size.",
+      "required": false,
+      "defaultValue": "/compute/global/computeProfiles/a1a.s",
+      "examples": [
+        "/compute/global/computeProfiles/a1a.s"
+      ]
+    },
+    {
+      "name": "diskImageRef",
+      "type": "string",
+      "label": "Disk Image",
+      "description": "Evroc disk image reference for the boot disk.",
+      "required": false,
+      "defaultValue": "/compute/global/diskImages/evroc/ubuntu.24-04.1",
+      "examples": [
+        "/compute/global/diskImages/evroc/ubuntu.24-04.1"
+      ]
+    },
+    {
+      "name": "diskSizeGB",
+      "type": "int",
+      "label": "Disk Size (GB)",
+      "description": "Boot disk size in GB.",
+      "required": false,
+      "defaultValue": 30,
+      "minValue": 1
+    },
+    {
+      "name": "sshAuthorizedKeys",
+      "type": "stringList",
+      "label": "SSH Authorized Keys",
+      "description": "SSH public keys injected into the node for bootstrap and maintenance.",
+      "required": true,
+      "examples": [
+        "ssh-ed25519 AAAA... user@example"
+      ]
+    },
+    {
+      "name": "sshSourceCIDR",
+      "type": "string",
+      "label": "SSH Source CIDR",
+      "description": "CIDR allowed to access the node over SSH.",
+      "required": false,
+      "defaultValue": "0.0.0.0/0"
+    },
+    {
+      "name": "kubernetesAPISourceCIDR",
+      "type": "string",
+      "label": "Kubernetes API Source CIDR",
+      "description": "CIDR allowed to access the Kubernetes API on the provisioned node.",
+      "required": false,
+      "defaultValue": "0.0.0.0/0"
+    }
+  ]
+}
