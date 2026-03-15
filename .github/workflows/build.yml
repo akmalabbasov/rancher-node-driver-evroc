@@ -32,8 +32,10 @@ jobs:
           GONOSUMDB: github.com/akmalabbasov/evroc-sdk
         run: |
           mkdir -p dist
+          go build -trimpath -o "dist/docker-machine-driver-evroc_${GOOS}_${GOARCH}" ./cmd/docker-machine-driver-evroc
           go build -trimpath -o "dist/rancher-node-driver_${GOOS}_${GOARCH}" ./cmd/rancher-node-driver
           go build -trimpath -o "dist/evroc-machine-driver_${GOOS}_${GOARCH}" ./cmd/evroc-machine-driver
+          tar -C dist -czf "dist/docker-machine-driver-evroc_${GOOS}_${GOARCH}.tar.gz" "docker-machine-driver-evroc_${GOOS}_${GOARCH}"
           tar -C dist -czf "dist/rancher-node-driver_${GOOS}_${GOARCH}.tar.gz" "rancher-node-driver_${GOOS}_${GOARCH}"
           tar -C dist -czf "dist/evroc-machine-driver_${GOOS}_${GOARCH}.tar.gz" "evroc-machine-driver_${GOOS}_${GOARCH}"
       - uses: actions/upload-artifact@v4

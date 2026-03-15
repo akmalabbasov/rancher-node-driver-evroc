@@ -1,11 +1,12 @@
 # Rancher Node Driver for Evroc
 
-This repository contains the current Evroc machine lifecycle PoC for Rancher-style node provisioning.
+This repository contains the current Evroc machine lifecycle implementation for Rancher-style node provisioning on Evroc.
 
-It is a standalone Go module and release target. It is not yet a Rancher-installable node driver plugin, but it already implements the core pieces needed for one:
+It is a standalone Go module and release target. It now includes a real Docker Machine plugin binary that Rancher can import as a custom node driver:
 
 - Evroc-backed machine provisioning
-- Rancher-shaped machine configuration
+- a real `docker-machine-driver-evroc` plugin binary
+- Rancher-shaped machine configuration and auxiliary CLIs
 - machine-driver-style runtime accessors
 - schema and example generation for a future Rancher UI layer
 
@@ -14,6 +15,7 @@ It is a standalone Go module and release target. It is not yet a Rancher-install
 What works today:
 
 - create, inspect, and destroy a single Evroc VM with supporting resources
+- expose `docker-machine-driver-evroc` for Rancher custom node driver import
 - drive that lifecycle through a Rancher-shaped `NodeDriver` facade
 - expose machine-driver-style commands for state and SSH access
 - generate machine config schema and example YAML
@@ -21,17 +23,19 @@ What works today:
 
 What does not exist yet:
 
-- a real Rancher node-driver SDK/runtime integration
 - a Rancher UI extension
 - multi-node or HA cluster orchestration inside this repo
+- Evroc VM power actions wired to `start`, `stop`, `restart`, and `kill`
 
 ## Repository Layout
 
 - `cmd/rancher-node-driver/`: standalone provisioner and Rancher-shaped driver CLI
 - `cmd/evroc-machine-driver/`: machine-driver-style runtime shim CLI
+- `cmd/docker-machine-driver-evroc/`: Rancher-importable Docker Machine plugin binary
 - `internal/drivercli/`: config loading and Evroc client construction
 - `pkg/evrocdriver/`: Evroc machine config, validation, provisioning, and driver facade
 - `pkg/machinedriver/`: runtime wrapper, schema generation, example generation, and e2e test
+- `pkg/rancherdriver/`: actual Docker Machine driver implementation for Evroc
 - `config.example.yaml`: example CLI config for direct provisioning flow
 - `machine-config.example.yaml`: example machine config for the driver/runtime flow
 - `schema.json`: generated machine config schema artifact
@@ -49,9 +53,18 @@ This repo uses the shared SDK module:
 
 ## Authentication Model
 
-The binaries do not accept raw API credentials directly.
+There are two auth modes in this repository.
 
-They read Evroc authentication from the Evroc CLI config file and then build an API client from the selected profile. By default:
+`docker-machine-driver-evroc`
+- accepts an Evroc API bearer token directly via `--evroc-access-token`
+- does not depend on local `~/.evroc/config.yaml`
+- this is the binary intended for Rancher import
+
+Auxiliary CLIs in `cmd/rancher-node-driver` and `cmd/evroc-machine-driver`
+- read Evroc authentication from the Evroc CLI config file
+- build an API client from the selected profile
+
+For the auxiliary CLIs, the defaults are:
 
 - config path: `~/.evroc/config.yaml`
 - profile: `default`
@@ -60,7 +73,7 @@ You can override the path in `config.yaml` with `configPath`, or override the pr
 
 ## Configuration Files
 
-There are two YAML inputs with different purposes.
+There are two YAML inputs used by the auxiliary CLIs.
 
 `config.example.yaml`
 - used by `cmd/rancher-node-driver`
@@ -106,6 +119,61 @@ Validation currently enforces:
 - SSH keys must look like supported public key types
 
 ## Commands
+
+### `cmd/docker-machine-driver-evroc`
+
+This is the binary Rancher should import as a custom node driver.
+
+Driver name:
+
+- `evroc`
+
+Expected binary name:
+
+- `docker-machine-driver-evroc`
+
+Current create flags exposed to Rancher:
+
+- `evroc-access-token`
+- `evroc-project-id`
+- `evroc-api-url`
+- `evroc-region`
+- `evroc-zone`
+- `evroc-compute-profile-ref`
+- `evroc-disk-image-ref`
+- `evroc-disk-size-gb`
+- `evroc-ssh-source-cidr`
+- `evroc-kubernetes-api-source-cidr`
+- `evroc-ssh-user`
+- `evroc-ssh-port`
+- `evroc-engine-port`
+
+How it works:
+
+- Rancher generates an SSH key for the machine
+- the driver injects the generated public key into the Evroc VM
+- the driver creates a security group, public IP, boot disk, and VM
+- Rancher then connects over SSH and continues machine provisioning
+
+Important limitation:
+
+- the current generic flag surface does not hide the access token in Rancher UI
+- a proper Rancher UI extension is still needed for cloud credentials and a better machine config UX
+
+### Import Into Rancher
+
+At a minimum, the release asset must expose the Linux driver binary built from:
+
+- `cmd/docker-machine-driver-evroc`
+
+High-level import flow:
+
+1. open `Cluster Management -> Drivers -> Node Drivers`
+2. add a custom node driver
+3. use driver name `evroc`
+4. point Rancher at the release asset URL for `docker-machine-driver-evroc`
+5. activate the driver
+6. create a node template or machine pool using the `evroc-*` fields above
 
 ### `cmd/rancher-node-driver`
 
@@ -235,6 +303,8 @@ GitHub Actions builds release binaries on tags matching `v*`.
 
 Current outputs:
 
+- `docker-machine-driver-evroc_linux_amd64.tar.gz`
+- `docker-machine-driver-evroc_linux_arm64.tar.gz`
 - `rancher-node-driver_linux_amd64.tar.gz`
 - `rancher-node-driver_linux_arm64.tar.gz`
 - `evroc-machine-driver_linux_amd64.tar.gz`
@@ -249,15 +319,17 @@ Workflow:
 
 ## Known Limitations
 
-- the repo is still a PoC, not a Rancher-installable plugin
+- the repo now ships a Rancher-importable plugin binary, but the overall project is still in PoC scope
 - the current scope is single-machine lifecycle validation
 - the code currently assumes Ubuntu images compatible with the shipped cloud-init
 - the release workflow only builds Linux binaries
+- the imported Rancher driver currently uses a direct access token field rather than a dedicated cloud credential UI
+- `start`, `stop`, `restart`, and `kill` are not implemented because the current Evroc SDK/client does not expose VM power operations
 
 ## Next Step
 
-The next engineering step is to replace the local runtime shim with Rancher's real machine-driver integration surface while reusing:
+The next engineering steps are:
 
-- `pkg/evrocdriver`
-- `pkg/machinedriver`
-- `schema.json`
+1. add a Rancher UI extension for Evroc cloud credentials and machine config
+2. add Evroc VM power operations to the SDK and wire them into the machine driver
+3. validate end-to-end cluster creation from Rancher against the released `docker-machine-driver-evroc` binary
